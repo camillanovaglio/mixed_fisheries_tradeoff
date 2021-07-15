@@ -1,0 +1,406 @@
+---
+title: "Novaglio Et Al. Journal of Applied Ecology review"
+author: "Camilla Novaglio"
+date: "27/12/2020"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# File description  
+
+This file is to be considered as Supplementary Information for the paper 'Exploring trade-offs in mixed fisheries by integrating fleet dynamics into multispecies size-spectrum models' submitted to the Journal of Applied Ecology.  
+
+This file loads the data and all the codes needed to run the calibrated size-spectrum and fleet dynamics model that represents the Australia’s South East Shark and Scalefish Fishery. It provides the data and codes to set up scenarios, run projections and calculate ecological and socio-economic indicators detailed in the paper. Finally, this file reproduces the main figures in the paper, specifically Fig 3 (final model's outputs), Fig 4 (Scenarios and model projections to 2040) and Fig 5 (change in indicators across scenarios and relative to the status quo). For more information, please contact the author: camilla.novaglio@gmail.com  
+
+## Load data and codes  
+
+```{r codes, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+####### load data 
+rm(list=ls())
+load("/Users/camillan/R-projects/JAE_mixed_fisheries_tradeoff_GitHub/data/Mixed_fisheries_tradeoff.RData") 
+
+####### load libraries 
+library(tidyverse)
+library(devtools)
+library(plyr) 
+library(Rcpp)
+library(reshape2)
+library(inline)
+library(ggplot2)
+library(ggthemes)
+library(vegan)
+library(mizer) # using "_mizer_inner_project_loop" function from Mizer package for faster iteration of species one time step forward (Project.R, line 573)
+library(patchwork)
+library(cowplot)
+library(ggpubr)
+library(matrixStats)
+
+####### load model 
+setwd("//Users/camillan/R-projects/JAE_mixed_fisheries_tradeoff_GitHub/R")
+source("data.R") 
+source("help.R") 
+source("MizerParams-class.R") 
+source("MizerSim-class.R")
+source("plots.R")
+source("project_methods.R")
+source("project.R") 
+source("RcppExports.R") 
+source("selectivity_funcs.R")
+source("summary_methods.R")
+source("wrapper_functions.R")
+source("DataFunction.R") 
+
+#######  specify or rename model inputs 
+df_param = df_param2 # species-specific parameters 
+interaction = theta # predator-prey interaction matrix
+kappa = kappa # intercept of the pelagic background spectrum 
+kappa_ben = kappa_ben # intercept of the benthic background spectrum
+kappa_alg = kappa_alg # intercept of the algae background spectrum (not used)
+w_pp_cutoff = w_pp_cutoff # cut off size of the benthic background spectrum 
+min_w_bb = min_w_bb # minimum size of the pelagic background spectrum 
+w_bb_cutoff = w_bb_cutoff # cut off size of the benthic background spectrum 
+fleetDynamics = TRUE
+management = TRUE 
+multiFleet = FALSE # TRUE only when fleets are driven by fleet-specific effort and not price and costs
+selectivity_params = df_selParam_new # selectivity parameters 
+catchability = df_target_bmsy2 # species-fleet catchability matrix (not considered as part of 'target' below)
+target = df_target_bmsy2 # species-fleet interaction matrix
+effort = 0 # fishing effort (not considered as emergent from the model)
+dt = 0.25 # model time resolution
+price = df_price_new # species market price  
+cost = df_cost3 # fleet costs (already scaled)
+# scaling_costs = scaling_costs # influential - set at a different value for each fleet
+diet_steps = 0 # needed only to plot diet matrix 
+ke = ke_fleet # fleets' time scale parameter 
+scaling_price = scaling_price # not influential - set to 1
+Blevel_management = "Bmsy" # management type 
+initial_n = initial_n # initial species abundance 
+initial_n_pp = initial_n_pp # initial pelagic background abundance 
+initial_n_bb = initial_n_bb # initial benthic background abundance 
+initial_effort = initial_effort2 # initial effort as a starting values for fleet dynamics 
+scaling_effort<-rep(1,5) # not influential - set to 1
+
+```
+
+## Calibrated model
+
+### Run calibrated model   
+
+```{r run model, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+
+####### set up model parameters 
+params_FD <- MizerParams(df_param, interaction = interaction, kappa = kappa, kappa_ben = kappa_ben, kappa_alg = kappa_alg, w_pp_cutoff = w_pp_cutoff, min_w_bb = min_w_bb, w_bb_cutoff = w_bb_cutoff, fleetDynamics = fleetDynamics, selectivity_params = selectivity_params, catchability = catchability, target = target)
+
+####### run model
+sim_FD_bmsy <- project(params_FD, effort = effort, dt = dt, fleetDynamics = fleetDynamics, multiFleet = multiFleet, management = management, price = price, cost = cost, diet_steps = diet_steps, ke = ke, initial_n = initial_n, initial_n_pp = initial_n_pp, initial_n_bb = initial_n_bb, initial_effort = initial_effort, scaling_price = scaling_price, Blevel_management = Blevel_management) 
+
+####### plots
+plot_CN(sim_FD_bmsy)
+
+```
+
+### Figure 3   
+
+```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+
+####### Panel A - effort dynamics 
+
+# extract modeled and observed data 
+yieldData_fleet<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs,rescale=0,areaEco)$DataPlotYield_fl 
+colnames(yieldData_fleet)<-c("year", "fleet","yield_tonnes","type")
+effortData<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs,rescale=0,areaEco)$DataPlotEffort_fl 
+colnames(effortData)<-c("year", "fleet","effort_opn","type")
+
+# arrange data 
+a<-effortData
+b<-yieldData_fleet
+
+colnames(a)<-c("year", "fleet", "EFFORT", "color")
+colnames(b)<-c("year", "fleet", "YIELD", "color")
+temp<-merge(a, b, all = TRUE)
+temp<-temp %>% 
+  gather("type", "value", -c(year, fleet, color))
+
+a = c("SET-SH","SET-US","SSG","SET-DS","SED")
+temp2<-temp %>% 
+  spread(color, value) %>% 
+  filter(type == "EFFORT") %>% 
+  mutate(fleet = factor(fleet, level = a)) 
+
+# plot data 
+scaleFUN <- function(x) sprintf("%.0f", x)
+
+plotEffortCatch_fl <- ggplot(temp2) + 
+  geom_line(aes(x=year, y= modelled_FD), size=0.5) +
+  geom_point(aes(x=year, y = observed), size = 1, shape = 1)+
+  scale_x_continuous(labels = scaleFUN, name = "Year") +
+  theme_tufte(base_family = "") +
+  theme(text = element_text(size=14),
+        axis.title.y = element_text(vjust=0.4, size = 15),
+        axis.title.x = element_text(vjust=0.3, size = 15),
+        axis.text.y = element_text(size=10, hjust=0.5),
+        axis.text.x = element_text(size=10, angle = 90, hjust=0.5),
+        panel.grid.major = element_blank(),
+        axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"),
+        panel.border = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold"))+
+  scale_y_continuous(name = "Effort (n. of hauls)")+
+  facet_wrap(~fleet, nrow = 1)+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf)
+
+####### Panel B - catch composition
+
+# plot data using function in DataFunction.R 
+fig3b<-catchComp(sim_FD_bmsy, datValidationYieldSppFl)$p
+
+# fix legends 
+leg<-get_legend(fig3b)
+leg<-as_ggplot(leg)
+fig3b2<-fig3b + theme(legend.position = "none")
+
+####### final figure 
+
+# add captions 
+plotEffortCatch_fl <- plotEffortCatch_fl + ggtitle("a)") + theme(plot.title = element_text(size = 12, face = "bold"))
+fig3b2 <- fig3b2 + ggtitle("b)") + theme(plot.title = element_text(size = 12, face = "bold"))
+
+((plotEffortCatch_fl/fig3b2 + plot_layout(nrow=2,height=c(1,2))) | (plot_spacer()/leg + plot_layout(nrow=2,height=c(2,2)))) + plot_layout(ncol=2, widths = c(4,1))
+
+```
+
+## Scenarios   
+
+### Update model inputs  
+
+```{r scenarios, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+#######  specify starting model for projections 
+sim = sim_FD_bmsy
+
+####### initial abundances as output of calibrated model (last year of model run)
+initial_n_scenario = sim@n[nrow(sim@n),,]
+initial_n_pp_scenario  = sim@n_pp[nrow(sim@n_pp),]
+initial_n_bb_scenario  = sim@n_bb[nrow(sim@n_bb),]
+initial_effort_scenario = sim@effortOut[dim(sim@effortOut)[1],]   
+
+####### forward price and costs to 2040
+t_max = 23 # use 83 to run the model to 2100 (Fig S9)
+price_forward = t(replicate(t_max, price[nrow(price),]))
+rownames(price_forward)<-seq(2018,(2018+t_max-1))
+
+cost_forward1 <- t(replicate(t_max, cost[nrow(cost),,1]))
+rownames(cost_forward1)<-seq(2018,(2018+t_max-1))
+
+cost_forward2 <- t(replicate(t_max, cost[nrow(cost),,2]))
+rownames(cost_forward2)<-seq(2018,(2018+t_max-1))
+
+cost_forward <-array(c(cost_forward1,cost_forward2),dim = c(dim(cost_forward1)[1],dim(cost)[2],dim(cost)[3]), dimnames = c(dimnames(cost_forward1)[1],dimnames(cost)[2],dimnames(cost)[3]))
+
+```
+
+### Change fleet interactions
+
+Here we define scenarios, each having a different fleet-species interaction matrix. This matrix determines each species' proportional contribution to the fleet's catch - hence this matrix defines competitive fleet interactions. The scenarios we consider are no competition, maximum competition, less bycatch, more valuable and more under-utilized. Below we compare these scenarios with the status quo (interactions as per catch and effort data).
+
+```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+######## un-fished community
+df_target_unfished<-target
+df_target_unfished[]<-0
+
+####### status quo 
+# target
+
+######## no competition
+df_target_NoCompetition<-target
+trial<-colMaxs(df_target_NoCompetition)
+trial<-trial[-which(trial == 0)]
+df_target_NoCompetition[df_target_NoCompetition %in% trial]<-1
+df_target_NoCompetition[df_target_NoCompetition != 1]<-0
+
+# keep Fmort constant across scenarios  
+div<-colSums(df_target_NoCompetition*initial_effort_scenario)/colSums(target*initial_effort_scenario)
+df_target_NoCompetition<-sweep(df_target_NoCompetition, 2, div, FUN = '/')
+df_target_NoCompetition[, "myctophids"]<-0  
+
+######## Max competition 
+df_target_FullCompetition<-target
+df_target_FullCompetition[]<-1
+df_target_FullCompetition[, "myctophids"]<-0  
+
+# keep Fmort constant across scenarios 
+div<-colSums(df_target_FullCompetition*initial_effort_scenario)/colSums(target*initial_effort_scenario)
+df_target_FullCompetition<-sweep(df_target_FullCompetition, 2, div, FUN = '/')
+df_target_FullCompetition[, "myctophids"]<-0  
+
+######## Less bycatch
+df_target_NoBycatch<-target
+# bycatch defined as: the 2 fleets with lowest proportion of catches should not catch the spp 
+df<-target
+for(i in 1:ncol(df)){
+  df<-df[order(df[,i]),]
+  df[c(1,2,3),i]<-0
+}
+df<-df[c(2,1,4,3,5),]
+df_target_NoBycatch<-df
+
+# keep Fmort constant across scenarios 
+div<-colSums(df_target_NoBycatch*initial_effort_scenario)/colSums(target*initial_effort_scenario)
+df_target_NoBycatch<-sweep(df_target_NoBycatch, 2, div, FUN = '/')
+df_target_NoBycatch[, "myctophids"]<-0  
+
+######## more valuable     
+# define most valuable spp and increase fishing by 50% 
+valuable<-sort(-df_price_new[nrow(df_price_new),])
+valuable<-names(valuable)[1:6]
+
+# increase Fmort of valuable by 50% of current Fmort and spread that increase across fleets proportionally
+df_target_MoreTarget<-target
+a<-colSums(target[,valuable]*initial_effort_scenario) 
+a<-a + (a*0.5) 
+div<-colSums(df_target_MoreTarget[,valuable]*initial_effort_scenario)/a
+df_target_MoreTarget[,valuable]<-sweep(df_target_MoreTarget[,valuable], 2, div, FUN = '/')
+
+######## target more under-quota   
+# define under quota spp and increase fishing on these by 50%. https://www.afma.gov.au/sites/default/files/semac_tac_recommendations_2019-20.pdf
+under<-c("macruronus novaezelandiae","nemadactylus macropterus","zeus faber","pristiophorus cirratus") 
+
+# increase Fmort of under-quota by 50% of current Fmort and spread that increase across fleets proportionally
+df_target_MoreUnderQuota<-target
+a<-colSums(target[,under]*initial_effort_scenario) 
+a<-a + (a*0.5)
+div<-colSums(df_target_MoreUnderQuota[,under]*initial_effort_scenario)/a
+df_target_MoreUnderQuota[,under]<-sweep(df_target_MoreUnderQuota[,under], 2, div, FUN = '/')
+
+# Fishing mortality for each species from all fleets is <1 during all model and scenarios' runs - i.e. exploitation rate (catch/biomass at t) < 1
+
+```
+
+### Run scenarios 
+
+Here we project the model forward (to 2040) for each scenarios 
+
+```{r, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+target_scenario = list(unfished = df_target_unfished, noCompetition = df_target_NoCompetition, fullCompetition = df_target_FullCompetition, statusQuo = target, noBycatch = df_target_NoBycatch, MoreTarget = df_target_MoreTarget, MoreUnderQuota = df_target_MoreUnderQuota) 
+
+runModel<-function(target_scenario){
+  
+  params_scenario<-list()
+  sim_scenario<-list()
+
+  for(i in 1:length(target_scenario)){
+  
+    params_scenario[[i]] <- MizerParams(df_param,
+                            interaction = theta, 
+                            kappa = kappa,
+                            kappa_ben = kappa_ben, 
+                            kappa_alg = kappa_alg, 
+                            w_pp_cutoff = w_pp_cutoff,
+                            min_w_bb = min_w_bb, 
+                            w_bb_cutoff = w_bb_cutoff, 
+                            fleetDynamics = fleetDynamics, 
+                            selectivity_params = selectivity_params,
+                            catchability = target_scenario[[i]],
+                            target = target_scenario[[i]])
+
+    sim_scenario[[i]] <- project(params_scenario[[i]], 
+                      effort = effort, 
+                      dt = dt, 
+                      fleetDynamics = fleetDynamics, 
+                      management = fleetDynamics, 
+                      multiFleet = multiFleet,
+                      price = price_forward, 
+                      cost = cost_forward, 
+                      diet_steps = diet_steps, 
+                      ke = ke,  
+                      initial_effort = initial_effort_scenario,
+                      scaling_price = scaling_price,
+                      Blevel_management = Blevel_management,
+                      initial_n = initial_n_scenario,
+                      initial_n_pp = initial_n_pp_scenario, 
+                      initial_n_bb = initial_n_bb_scenario)
+  
+    names(sim_scenario)[i]<-names(target_scenario)[i]
+  
+  } 
+  
+  return(sim_scenario)
+}
+
+sim_scenario<-runModel(target_scenario)
+
+```
+
+### Figure 4
+
+```{r fig 4, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=11, fig.height=10}
+
+######## delete unfished as not used here 
+sim_scenario$unfished<-NULL
+
+######## order and rename variables 
+# scenarios
+a = c("statusQuo","noCompetition","fullCompetition","noBycatch","MoreUnderQuota","MoreTarget")
+b = c("Status Quo","No Comp.","Max Comp.", "Bycatch","Under-utilised", "Valuable")
+
+# fleets 
+d = c("SET-SH","SET-US","SSG","SET-DS","SED")
+
+# species  
+spNames<-c("Lanternfish","Whiting","Squid","Perch","Mackerel","Redfish","Deep shark","Morwong","Flathead","Dories","Blue warehou","Orange roughy","Blue granadier","Silver warehou","Gemfish","Pink ling","Sawshark","Gummy shark","School shark")
+
+# indicators 
+e = c("profit", "yield", "effort", "Fref","Nref48", "Nref40","Nref20","slope", "biomassTarget","biomassSens","biomass")
+f = c("Profit", "Yield", "Effort", "Active fleets","Spp above Bmey","Spp above Bmsy","Spp above Blim", "Slope","Biomass target", "Biomass sensitive","Biomass")
+
+######## Fig 
+# top panel - fleet-species interaction matrix for each scenario
+plot_matrix = plotFleetMatrix(a,b,target_scenario)$plot_matrix 
+
+# middle panel - effort dynamics for each fleet and scenarios 
+col_values<-c("#b2182b", "#ef8a62", "#d1e5f0","#67a9cf", "#2166ac")
+plot_effort = plotFleetEffort(a,b, sim_scenario, sim, col_values)
+
+# bottom panel - trends in main indicators (biomass of main target species, yields and profits at the fishery level)  
+col_values<-c("#7b3294","#c2a5cf","#a6dba0","#008837")
+plot_indiTrend<-indicatorsTrend(a,b, sim_scenario, sim, col_values) 
+plot_all<-plot_indiTrend$plot_indiTrend
+
+# Final Fig 4
+plot_matrix / plot_effort / plot_all + plot_layout (nrow = 3, heights = c(2.2,1.4,1.4))
+
+```
+
+### Figure 5
+
+```{r fig 5, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+
+# avoid scenarios abbreviations for this fig 
+b = c("Status Quo","No Competition","Max Competition", "Bycatch","Under-utilised", "Valuable")
+
+######## Fig 
+indi<-indicators(sim_scenario, management = TRUE)
+df_plot = indi$df_plot
+
+col_values3<-c("#7fbf7b","#af8dc3")
+lolliIndicator = plotIndicators(a,b,df_plot, col_values3, scenarios = "all") 
+lolliIndicator1 <- lolliIndicator$lolliIndicator1
+lolliIndicator2 <- lolliIndicator$lolliIndicator2
+
+# final Fig 5
+lolliIndicator1/lolliIndicator2 + plot_layout (nrow = 2, heights = c(2.1,0.9))
+
+```
+
+
+
