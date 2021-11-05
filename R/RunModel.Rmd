@@ -1,5 +1,5 @@
 ---
-title: "Novaglio Et Al. Journal of Applied Ecology review"
+title: "Novaglio Et Al. 2021, Journal of Applied Ecology"
 author: "Camilla Novaglio"
 date: "27/12/2020"
 output: 
@@ -14,7 +14,7 @@ editor_options:
 
 This file is to be considered as Supplementary Information for the paper 'Exploring trade-offs in mixed fisheries by integrating fleet dynamics into multispecies size-spectrum models' submitted to the Journal of Applied Ecology.  
 
-This file loads the data and all the codes needed to run the calibrated size-spectrum and fleet dynamics model that represents the Australia’s South East Shark and Scalefish Fishery. It provides the data and codes to set up scenarios, run projections and calculate ecological and socio-economic indicators detailed in the paper. Finally, this file reproduces the main figures in the paper, specifically Fig 3 (final model's outputs), Fig 4 (Scenarios and model projections to 2040) and Fig 5 (change in indicators across scenarios and relative to the status quo). For more information, please contact the author: camilla.novaglio@gmail.com  
+This file loads the data and all the codes needed to run the calibrated size-spectrum and fleet dynamics model that represents the Australia’s South East Shark and Scalefish Fishery. It provides the data and codes to set up scenarios, run projections and calculate ecological and socio-economic indicators detailed in the paper. Finally, this file reproduces all modelling and data figures in the paper, specifically Fig 2 (baseline model's output), Fig 3 (final model's outputs), Fig 4 (Scenarios and model projections to 2040) and Fig 5 (change in indicators across scenarios and relative to the status quo). For more information, please contact camilla.novaglio@gmail.com  
 
 ## Load data and codes  
 
@@ -22,7 +22,7 @@ This file loads the data and all the codes needed to run the calibrated size-spe
 
 ####### load data 
 rm(list=ls())
-load("/Users/camillan/R-projects/JAE_mixed_fisheries_tradeoff_GitHub/data/Mixed_fisheries_tradeoff.RData") 
+load("/Users/camillan/R-projects/mixed_fisheries_tradeoff/data/Mixed_fisheries_tradeoff.RData") 
 
 ####### load libraries 
 library(tidyverse)
@@ -41,8 +41,7 @@ library(ggpubr)
 library(matrixStats)
 
 ####### load model 
-setwd("//Users/camillan/R-projects/JAE_mixed_fisheries_tradeoff_GitHub/R")
-source("data.R") 
+setwd("/Users/camillan/R-projects/mixed_fisheries_tradeoff/R/")
 source("help.R") 
 source("MizerParams-class.R") 
 source("MizerSim-class.R")
@@ -55,11 +54,11 @@ source("summary_methods.R")
 source("wrapper_functions.R")
 source("DataFunction.R") 
 
-#######  specify or rename model inputs 
+####### specify or rename model inputs for the calibrated fleet dynamics and size-spectrum model
 df_param = df_param2 # species-specific parameters 
 interaction = theta # predator-prey interaction matrix
 kappa = kappa # intercept of the pelagic background spectrum 
-kappa_ben = kappa_ben # intercept of the benthic background spectrum
+kappa_ben = kappa_ben # intercept of the benthic background spectrum # NOTE CAMI benthic is larger than plankton spectrum... 
 kappa_alg = kappa_alg # intercept of the algae background spectrum (not used)
 w_pp_cutoff = w_pp_cutoff # cut off size of the benthic background spectrum 
 min_w_bb = min_w_bb # minimum size of the pelagic background spectrum 
@@ -89,7 +88,45 @@ scaling_effort<-rep(1,5) # not influential - set to 1
 
 ## Calibrated model
 
-### Run calibrated model   
+### Run calibrated baseline model and produce Figure 2
+
+```{r run model baseline, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+
+# sim_fitted is a Mizer object where all inputs to run the calibrated baseline model and all outputs from this model are already stored. 
+# to run the model: 
+
+# ####### set up model parameters 
+# params_fitted <- MizerParams(sim_fitted@params@species_params, interaction = sim_fitted@params@interaction, kappa = sim_fitted@params@kappa, kappa_ben = sim_fitted@params@kappa_ben, kappa_alg = sim_fitted@params@kappa_alg, w_pp_cutoff = w_pp_cutoff, min_w_bb = min_w_bb, w_bb_cutoff = w_bb_cutoff, fleetDynamics = FALSE, selectivity_params = NA, catchability = NA, target = NA)
+# 
+# ####### run model
+# sim_fitted<- project(params_fitted, effort = sim_fitted@effort, dt = dt, fleetDynamics = FALSE, multiFleet = FALSE, management = FALSE, price = NA, cost = NA, diet_steps = diet_steps)
+# 
+# ####### plots
+# plot(sim_fitted)
+
+###### Figure 2 
+fig2<-compareTrends(sim_fitted,sim_FD = NA,fleetDynamics = FALSE,type = "yield",yieldObs_timeVariant,ssbObs = NA,rescale=3,areaEco)$plotYield_sp
+
+# resize for publication 
+
+theme_final<-theme(
+  text = element_text(size=11, face = "plain"),
+  legend.text=element_text(size=9),
+  axis.title.y = element_text(size=11, vjust=2),
+  axis.title.x = element_text(size=11, vjust=0.3),
+  axis.text.y = element_text(size=9, hjust=0.95),
+  axis.text.x = element_text(size=9, angle = 90, hjust=0.95))
+
+fig2B<-fig2
+fig2B<-fig2B+theme_final+ theme(strip.text.x = element_text(face = "plain"))
+
+pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_2.pdf", height=5, width=7.08)
+fig2B
+dev.off()
+
+```
+
+### Run calibrated fleet dynamics and size-spectrum model   
 
 ```{r run model, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
 
@@ -111,9 +148,9 @@ plot_CN(sim_FD_bmsy)
 ####### Panel A - effort dynamics 
 
 # extract modeled and observed data 
-yieldData_fleet<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs,rescale=0,areaEco)$DataPlotYield_fl 
+yieldData_fleet<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs=NA,rescale=0,areaEco)$DataPlotYield_fl 
 colnames(yieldData_fleet)<-c("year", "fleet","yield_tonnes","type")
-effortData<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs,rescale=0,areaEco)$DataPlotEffort_fl 
+effortData<-compareTrends(sim_fitted,sim_FD = sim_FD_bmsy, fleetDynamics = TRUE,type = "yield",yieldObs_timeVariant,ssbObs=NA,rescale=0,areaEco)$DataPlotEffort_fl 
 colnames(effortData)<-c("year", "fleet","effort_opn","type")
 
 # arrange data 
@@ -157,10 +194,16 @@ plotEffortCatch_fl <- ggplot(temp2) +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf)+
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf)
 
+# resize for publication 
+plotEffortCatch_fl<-plotEffortCatch_fl +theme_final + theme(strip.text.x = element_text(face = "plain"))
+
 ####### Panel B - catch composition
 
 # plot data using function in DataFunction.R 
 fig3b<-catchComp(sim_FD_bmsy, datValidationYieldSppFl)$p
+
+# resize for publication 
+fig3b<-fig3b +theme_final+ theme(strip.text.x = element_text(face = "plain"))
 
 # fix legends 
 leg<-get_legend(fig3b)
@@ -170,10 +213,14 @@ fig3b2<-fig3b + theme(legend.position = "none")
 ####### final figure 
 
 # add captions 
-plotEffortCatch_fl <- plotEffortCatch_fl + ggtitle("a)") + theme(plot.title = element_text(size = 12, face = "bold"))
-fig3b2 <- fig3b2 + ggtitle("b)") + theme(plot.title = element_text(size = 12, face = "bold"))
+plotEffortCatch_fl <- plotEffortCatch_fl + ggtitle("a)") + theme(plot.title = element_text(size = 11, face = "bold"))
+fig3b2 <- fig3b2 + ggtitle("b)") + theme(plot.title = element_text(size = 11, face = "bold"))
 
-((plotEffortCatch_fl/fig3b2 + plot_layout(nrow=2,height=c(1,2))) | (plot_spacer()/leg + plot_layout(nrow=2,height=c(2,2)))) + plot_layout(ncol=2, widths = c(4,1))
+fig3<-((plotEffortCatch_fl/fig3b2 + plot_layout(nrow=2,height=c(1,2))) | (plot_spacer()/leg + plot_layout(nrow=2,height=c(1,1)))) + plot_layout(ncol=2, widths = c(4,1))
+
+pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_3.pdf", height=6, width=7.08)
+fig3
+dev.off()
 
 ```
 
@@ -364,20 +411,38 @@ e = c("profit", "yield", "effort", "Fref","Nref48", "Nref40","Nref20","slope", "
 f = c("Profit", "Yield", "Effort", "Active fleets","Spp above Bmey","Spp above Bmsy","Spp above Blim", "Slope","Biomass target", "Biomass sensitive","Biomass")
 
 ######## Fig 
-# top panel - fleet-species interaction matrix for each scenario
+# panel A - fleet-species interaction matrix for each scenario
 plot_matrix = plotFleetMatrix(a,b,target_scenario)$plot_matrix 
+plot_matrix <- plot_matrix + ggtitle("a)") + theme(plot.title = element_text(size = 11, face = "bold"))
 
-# middle panel - effort dynamics for each fleet and scenarios 
+# panel B top - effort dynamics for each fleet and scenarios 
 col_values<-c("#b2182b", "#ef8a62", "#d1e5f0","#67a9cf", "#2166ac")
 plot_effort = plotFleetEffort(a,b, sim_scenario, sim, col_values)
 
-# bottom panel - trends in main indicators (biomass of main target species, yields and profits at the fishery level)  
+# panel B bottom - trends in main indicators (biomass of main target species, yields and profits at the fishery level)  
 col_values<-c("#7b3294","#c2a5cf","#a6dba0","#008837")
 plot_indiTrend<-indicatorsTrend(a,b, sim_scenario, sim, col_values) 
 plot_all<-plot_indiTrend$plot_indiTrend
 
-# Final Fig 4
-plot_matrix / plot_effort / plot_all + plot_layout (nrow = 3, heights = c(2.2,1.4,1.4))
+# resize and rearrange for publication
+plot_matrix<-plot_matrix +theme_final+ theme(strip.text.x = element_text(face = "plain"), legend.key.size = unit(0.35, 'cm'), axis.text.x = element_text(size=8, hjust=0.95))
+
+plot_effort<-plot_effort + theme_final+ theme(strip.text.x = element_text(face = "plain"), legend.key.size = unit(0.35, 'cm'), axis.title.x=element_blank(), axis.text.x=element_blank(),                 axis.ticks.x=element_blank())
+plot_effort<-plot_effort+ ggtitle("b)") + theme(plot.title = element_text(size = 11, face = "bold"))
+
+plot_all<-plot_all + theme_final+ theme(legend.key.size = unit(0.35, 'cm'), strip.text.x = element_blank())
+
+# merge panel B top and bottom rows
+fig4B<-plot_effort/plot_all
+
+# Fig 4
+pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_4_flipped.pdf", height=7.03, width=9)
+plot_matrix / fig4B + plot_layout (nrow = 2, heights = c(2.2,2.8))
+dev.off()
+
+# pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_4.pdf", height=7.03, width=7.03)
+# plot_matrix / fig4B + plot_layout (nrow = 2, heights = c(2.2,2.8))
+# dev.off()
 
 ```
 
@@ -397,8 +462,17 @@ lolliIndicator = plotIndicators(a,b,df_plot, col_values3, scenarios = "all")
 lolliIndicator1 <- lolliIndicator$lolliIndicator1
 lolliIndicator2 <- lolliIndicator$lolliIndicator2
 
+lolliIndicator1 <- lolliIndicator1 + ggtitle("a)") + theme(plot.title = element_text(size = 11, face = "bold"))
+lolliIndicator2 <- lolliIndicator2 + ggtitle("b)") + theme(plot.title = element_text(size = 11, face = "bold"))
+
+# resize for publication 
+lolliIndicator1<-lolliIndicator1 +theme_final + theme(strip.text.x = element_text(face = "plain"))
+lolliIndicator2<-lolliIndicator2 +theme_final + theme(strip.text.x = element_text(face = "plain"))
+
 # final Fig 5
+pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_5.pdf", height=7.08, width=7.08)
 lolliIndicator1/lolliIndicator2 + plot_layout (nrow = 2, heights = c(2.1,0.9))
+dev.off()
 
 ```
 

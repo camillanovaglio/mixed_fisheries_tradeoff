@@ -1,5 +1,5 @@
 
-README.md for scripts to accompany the **"Exploring trade-offs in mixed fisheries by integrating fleet dynamics into multispecies size-spectrum models"** paper by Novaglio et al. 
+README.md for scripts to accompany the **"Exploring trade-offs in mixed fisheries by integrating fleet dynamics into multispecies size-spectrum models"** paper by Novaglio et al. 2021, Journal of Applied Ecology
 
 The master script RunModel.Rmd is structured into three main steps: 
 

@@ -762,7 +762,7 @@ compareTrends<-function(sim,sim_FD,fleetDynamics,type,yieldObs_timeVariant,ssbOb
   # observed
   
   # yieldObs_timeVariant in g m-3, see CreateFmort
-  # or SSB here transformed in g m3
+  # or SSB here transformed in g m-3
   if(type == "yield"){
     observed<-yieldObs_timeVariant
   }else {
@@ -824,8 +824,10 @@ compareTrends<-function(sim,sim_FD,fleetDynamics,type,yieldObs_timeVariant,ssbOb
   
   plot_y<-plot_y %>% 
     right_join(df_param[,c("species","spCommon")]) %>% 
-    filter(!species %in% c("myctophids","helicolenus barathri")) %>%
-    mutate(yield = ifelse(species %in% c("nototodarus gouldi","trachurus declivis" ) & yield==0, NA, yield))
+    filter(!species %in% c("myctophids","helicolenus barathri")) #%>%
+    # mutate(yield = ifelse(species %in% c("nototodarus gouldi","trachurus declivis" ) & yield==0, NA, yield)) 
+  # REVISION change to add 0 dots in modelled plot when rescale option=3 - Fig2 
+  # not sure why we ded this in the first place. 
   
   # arrange spp in order of size
   plot_y$spCommon<-factor(plot_y$spCommon, levels = c(df_param$spCommon))
@@ -846,7 +848,7 @@ compareTrends<-function(sim,sim_FD,fleetDynamics,type,yieldObs_timeVariant,ssbOb
   # plot trends in modelled and observed catches 
   plot_trends<-function(df){
     
-    df<-plot_y
+    # df<-plot_y
 
     p <- ggplot(df) + 
       geom_line(aes(x=year, y = yield, color = color), size=1) +
@@ -930,7 +932,6 @@ compareTrends<-function(sim,sim_FD,fleetDynamics,type,yieldObs_timeVariant,ssbOb
   if(fleetDynamics==TRUE){
     plotYield<-plotYield+facet_wrap(~spCommon)
   }
-
   
   ######## comparison option 2
   
@@ -1345,7 +1346,7 @@ plotFleetMatrix<-function(a,b,target_scenario){
     scale_fill_gradient(name ="Intensity" ,low = "#ffffcc", high = "#b10026", na.value = "grey80")+ 
     theme_bw()+
     ylab ("Species")+
-    xlab("Fishing fleets")+
+    xlab("Fishing fleet")+
     scale_y_discrete(labels = rev(spNames))+
     theme(text = element_text(size=20),
           axis.title.y = element_text(vjust=0.4, size = 22),
@@ -1388,8 +1389,8 @@ plotFleetEffort<-function(a,b, sim_scenario, sim,col_values){
     mutate(Fleet = factor(Fleet, level = d))
     
   plot_effort <- ggplot(e) + 
-    geom_line(aes(x = Year, y = Effort, group = Fleet, color = Fleet), size = 1.2) +
-    scale_y_continuous(name = "Effort (n. of hauls)") +
+    geom_line(aes(x = Year, y = Effort, group = Fleet, color = Fleet), size = 0.8) +
+    scale_y_continuous(name = "Effort \n(n. of hauls)") +
     scale_x_continuous(name = "Year")+
     scale_color_manual(values = col_values)+
     annotate("rect", xmin = min(e$Year), xmax = 2017, ymin = 0, ymax = max(e$Effort), alpha = .1, fill = "purple")+ 
@@ -1704,8 +1705,8 @@ indicatorsTrend<-function(a,b, sim_scenario, sim, col_values){
     filter(Indicator != "Biomass Sensitive")
     
   plot_indiTrend <- ggplot(trial) + 
-    geom_line(aes(x = Year, y = value, group = Indicator, color = Indicator),size = 1.2) +
-    scale_y_continuous(name = "Indicator (relative value)") +
+    geom_line(aes(x = Year, y = value, group = Indicator, color = Indicator),size = 0.8) +
+    scale_y_continuous(name = "Indicator \n(relative value)") +
     scale_x_continuous(name = "Year")+
     scale_color_manual(values = col_values[2:4])+
     annotate("rect", xmin = min(trial$Year), xmax = 2017, ymin = 0, ymax = max(trial$value), alpha = .1, fill = "purple")+ 
@@ -1833,7 +1834,7 @@ plotIndicators<-function(a,b,df_plot, col_values, scenarios){
   # use expressions to define titles
   df_plot6$indicator <- factor(df_plot6$indicator, 
                                levels = c("Spp above Blim", "Spp above Bmsy", "Spp above Bmey", "Active fleets"),
-                               labels = c("bold(Spp~above~B[LIM])","bold(Spp~above~B[MSY])","bold(Spp~above~B[MEY])","bold(Active~fleets)"))
+                               labels = c("Spp~above~B[LIM]","Spp~above~B[MSY]","Spp~above~B[MEY]","Active~fleets"))
   
   lolliIndicator2<-ggplot(df_plot6, aes(x= scenario, y = value, color = color))+
     geom_point(size = 3) +
