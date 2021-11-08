@@ -1910,14 +1910,14 @@ plotSppTrends<-function(temp_sim){
   y_label <- "Biomass (tonnes on a log scale)"
   limits = c(1000,250000)
 
-  plot_bio <- ggplot(biomass, aes(x = year, y = biomass)) +
-    scale_y_continuous(trans = "log10", name = y_label, limits = limits) + 
+  plot_bio <- ggplot(biomass, aes(x = year, y = log10(biomass))) +
+    scale_y_continuous( name = y_label) # limits = limits, trans = "log10",
     scale_x_continuous(name = x_label) +
-    annotate("rect", xmin = min(biomass$year), xmax = 2017, ymin = limits[1] , ymax = max(biomass$biomass), alpha = .1, fill = "purple")+
+    annotate("rect", xmin = min(biomass$year), xmax = 2017, ymin = -Inf , ymax = Inf, alpha = .1, fill = "purple")+
     geom_line(size = 0.8, color = "grey50") + 
-    geom_hline(data = BioLim, aes(yintercept = bio20), linetype = "dotdash", color = "red", size = 0.8)+
-    geom_hline(data = BioLim, aes(yintercept = bio40), linetype = "dashed", color = "green", size = 0.8)+
-    geom_hline(data = BioLim, aes(yintercept = bio48), linetype = "dotted", color = "blue", size = 0.8)+
+    geom_hline(data = BioLim, aes(yintercept = log10(bio20)), linetype = "dotdash", color = "red", size = 0.8)+
+    geom_hline(data = BioLim, aes(yintercept = log10(bio40)), linetype = "dashed", color = "green", size = 0.8)+
+    geom_hline(data = BioLim, aes(yintercept = log10(bio48)), linetype = "dotted", color = "blue", size = 0.8)+
     theme_bw()+
     theme(text = element_text(size=18),
             axis.title.y = element_text(vjust=0.4, size = 16),

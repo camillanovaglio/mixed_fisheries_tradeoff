@@ -240,15 +240,16 @@ initial_n_bb_scenario  = sim@n_bb[nrow(sim@n_bb),]
 initial_effort_scenario = sim@effortOut[dim(sim@effortOut)[1],]   
 
 ####### forward price and costs to 2040
-t_max = 23 # use 83 to run the model to 2100 (Fig S9)
+t_max = 24 # use 24 or 84 to run the model to 2100 (Fig S9)
+# start projections in 2017 as per initial effort, then remove the starting year nd consider 2018-2040 
 price_forward = t(replicate(t_max, price[nrow(price),]))
-rownames(price_forward)<-seq(2018,(2018+t_max-1))
+rownames(price_forward)<-seq(2017,(2017+t_max-1))
 
 cost_forward1 <- t(replicate(t_max, cost[nrow(cost),,1]))
-rownames(cost_forward1)<-seq(2018,(2018+t_max-1))
+rownames(cost_forward1)<-seq(2017,(2017+t_max-1))
 
 cost_forward2 <- t(replicate(t_max, cost[nrow(cost),,2]))
-rownames(cost_forward2)<-seq(2018,(2018+t_max-1))
+rownames(cost_forward2)<-seq(2017,(2017+t_max-1))
 
 cost_forward <-array(c(cost_forward1,cost_forward2),dim = c(dim(cost_forward1)[1],dim(cost)[2],dim(cost)[3]), dimnames = c(dimnames(cost_forward1)[1],dimnames(cost)[2],dimnames(cost)[3]))
 
@@ -320,7 +321,6 @@ df_target_MoreTarget[,valuable]<-sweep(df_target_MoreTarget[,valuable], 2, div, 
 ######## target more under-quota   
 # define under quota spp and increase fishing on these by 50%. https://www.afma.gov.au/sites/default/files/semac_tac_recommendations_2019-20.pdf
 under<-c("macruronus novaezelandiae","nemadactylus macropterus","zeus faber","pristiophorus cirratus") 
-
 # increase Fmort of under-quota by 50% of current Fmort and spread that increase across fleets proportionally
 df_target_MoreUnderQuota<-target
 a<-colSums(target[,under]*initial_effort_scenario) 
@@ -386,6 +386,35 @@ runModel<-function(target_scenario){
 
 sim_scenario<-runModel(target_scenario)
 
+# remove 2017 values before plotting  
+sim_scenario$noCompetition@effortOut<-sim_scenario$noCompetition@effortOut[2:nrow(sim_scenario$noCompetition@effortOut),]
+sim_scenario$fullCompetition@effortOut<-sim_scenario$fullCompetition@effortOut[2:nrow(sim_scenario$fullCompetition@effortOut),]
+sim_scenario$statusQuo@effortOut<-sim_scenario$statusQuo@effortOut[2:nrow(sim_scenario$statusQuo@effortOut),]
+sim_scenario$noBycatch@effortOut<-sim_scenario$noBycatch@effortOut[2:nrow(sim_scenario$noBycatch@effortOut),]
+sim_scenario$MoreTarget@effortOut<-sim_scenario$MoreTarget@effortOut[2:nrow(sim_scenario$MoreTarget@effortOut),]
+sim_scenario$MoreUnderQuota@effortOut<-sim_scenario$MoreUnderQuota@effortOut[2:nrow(sim_scenario$MoreUnderQuota@effortOut),]
+
+sim_scenario$noCompetition@yield<-sim_scenario$noCompetition@yield[2:nrow(sim_scenario$noCompetition@yield),,,]
+sim_scenario$fullCompetition@yield<-sim_scenario$fullCompetition@yield[2:nrow(sim_scenario$fullCompetition@yield),,,]
+sim_scenario$statusQuo@yield<-sim_scenario$statusQuo@yield[2:nrow(sim_scenario$statusQuo@yield),,,]
+sim_scenario$noBycatch@yield<-sim_scenario$noBycatch@yield[2:nrow(sim_scenario$noBycatch@yield),,,]
+sim_scenario$MoreTarget@yield<-sim_scenario$MoreTarget@yield[2:nrow(sim_scenario$MoreTarget@yield),,,]
+sim_scenario$MoreUnderQuota@yield<-sim_scenario$MoreUnderQuota@yield[2:nrow(sim_scenario$MoreUnderQuota@yield),,,]
+
+sim_scenario$noCompetition@profit<-sim_scenario$noCompetition@profit[2:nrow(sim_scenario$noCompetition@profit),]
+sim_scenario$fullCompetition@profit<-sim_scenario$fullCompetition@profit[2:nrow(sim_scenario$fullCompetition@profit),]
+sim_scenario$statusQuo@profit<-sim_scenario$statusQuo@profit[2:nrow(sim_scenario$statusQuo@profit),]
+sim_scenario$noBycatch@profit<-sim_scenario$noBycatch@profit[2:nrow(sim_scenario$noBycatch@profit),]
+sim_scenario$MoreTarget@profit<-sim_scenario$MoreTarget@profit[2:nrow(sim_scenario$MoreTarget@profit),]
+sim_scenario$MoreUnderQuota@profit<-sim_scenario$MoreUnderQuota@profit[2:nrow(sim_scenario$MoreUnderQuota@profit),]
+
+sim_scenario$noCompetition@n<-sim_scenario$noCompetition@n[2:nrow(sim_scenario$noCompetition@n),,]
+sim_scenario$fullCompetition@n<-sim_scenario$fullCompetition@n[2:nrow(sim_scenario$fullCompetition@n),,]
+sim_scenario$statusQuo@n<-sim_scenario$statusQuo@n[2:nrow(sim_scenario$statusQuo@n),,]
+sim_scenario$noBycatch@n<-sim_scenario$noBycatch@n[2:nrow(sim_scenario$noBycatch@n),,]
+sim_scenario$MoreTarget@n<-sim_scenario$MoreTarget@n[2:nrow(sim_scenario$MoreTarget@n),,]
+sim_scenario$MoreUnderQuota@n<-sim_scenario$MoreUnderQuota@n[2:nrow(sim_scenario$MoreUnderQuota@n),,]
+
 ```
 
 ### Figure 4
@@ -436,7 +465,7 @@ plot_all<-plot_all + theme_final+ theme(legend.key.size = unit(0.35, 'cm'), stri
 fig4B<-plot_effort/plot_all
 
 # Fig 4
-pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_4_flipped.pdf", height=7.03, width=9)
+pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_S9_flipped.pdf", height=7.03, width=9)
 plot_matrix / fig4B + plot_layout (nrow = 2, heights = c(2.2,2.8))
 dev.off()
 
