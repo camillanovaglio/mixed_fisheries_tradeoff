@@ -119,6 +119,27 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
                     # AA temperature adding
                     diet_steps=10, ...) {
 
+  # # # trial 
+  # params = params_FD
+  # effort = effort
+  # dt = dt
+  # fleetDynamics = fleetDynamics
+  # multiFleet = multiFleet
+  # management = management
+  # price = price
+  # cost = cost
+  # diet_steps = diet_steps
+  # ke = ke
+  # initial_n = initial_n
+  # initial_n_pp = initial_n_pp
+  # initial_n_bb = initial_n_bb
+  # initial_effort = initial_effort
+  # scaling_price = scaling_price
+  # Blevel_management = Blevel_management
+  # t_max = 100
+  # temperature = rep(params@t_ref, times = t_max)
+  # t_save = 1
+  
     validObject(params)
     
     if (is.vector(effort)) {
@@ -425,6 +446,11 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
     
     for (i_time in 1:t_steps) {
       
+    # trial
+      # for (i_time in 1:10) {
+      
+        # i_time = 11
+        
         # Calculate amount E_{a,i}(w) of available food
         avail_energy <- getAvailEnergy(sim@params, n = n, n_pp = n_pp, n_bb = n_bb, n_aa = n_aa)
         # to fix: Error in mu_S[mu_S < 0] <- x[x < 0]
@@ -637,6 +663,8 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
             
             for(i in 1:length(Bio)){
               
+              # i = 1
+              
               # calculate how many species reached thresholds for each fleet 
               SpBelowLimits<-split(BioOut, BioOut$fleet)
               SpBelowLimits<-SpBelowLimits[[i]]
@@ -651,18 +679,18 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
               Perc40<-SpBelowLimits[SpBelowLimits$bioLim == "bio40check",]
               Perc40<-merge(Perc40,Bio2[[i]], all = FALSE)
               
-              # % of decrease in species abundance
-              Perc40$Perc40<-((Perc40$bio40-Perc40$bioLevel)/Perc40$bio40) 
+              # % of decrease in species abundance # CHECKED 
+              Perc40$Perc40<-((Perc40$bio40-(Perc40$bioLevel))/Perc40$bio40) 
               
               # % of decrease in effort
               
               # option A - weighted sum of contributing species: (a*Ba + b*Bb + c*Bc)/(Ba + Bb + Bc)
               # (used option for JAE paper)
               
-              # contribution to the community 
-              Perc40$contribution<-Perc40$bioLevel*Perc40$Perc40 
+              # contribution to the community
+              Perc40$contribution<-Perc40$bioLevel*Perc40$Perc40
               # contribution to the catch  
-              Perc40$contribution<-Perc40$contribution*Perc40$target 
+              Perc40$contribution<-Perc40$contribution*Perc40$target
               
               # MeanPerc40A<-sum(Perc40$contribution)/sum(Perc40$bioLevel) 
               # problem: less species below target result in lower biolevel (less spp = less abundance) and higher decrease in effort 
@@ -675,12 +703,15 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
               # we then do the weighted sum of contributing species as defined above 
               # but 'contributing' here means contributing in terms of both biomass and catch
               MeanPerc40A<-sum(Perc40$contribution)/sum(ref$bioLevel)
-              
+
               # option B - cube root of (a * b * c) 
-              # MeanPerc40B<-prod(Perc40$Perc40)^(1/3)
+              # MeanPerc40A<-prod(Perc40$Perc40)^(1/3)
+              
+              # constant decrease, no matter depletion
+              # MeanPerc40A<-0.1
               
               # option C - simple mean
-              # MeanPerc40C<-mean(Perc40$Perc40) 
+              # MeanPerc40C<-mean(Perc40$Perc40)
               # print(paste(i_time, n48, n40, n20)) # how many species below biomass ref levels 
               
               if(n48==0 & n40==0 & n20==0) 
@@ -709,7 +740,7 @@ project <- function(params, effort = 0,  t_max = 100, dt = 0.25, t_save=1,
                   
                   # new effort according to profits 
                   test = effortOut_dt[i_time,][i] + (ke[i,"ke"]*(profit_itime[[i]]) * dt) 
-                  # new effort according to management
+                  # new effort according to management # CHECKED 
                   test2 = effortOut_dt[i_time,][i] * (1 - MeanPerc40A*dt)
                   
                   # if fishing is not profitable 

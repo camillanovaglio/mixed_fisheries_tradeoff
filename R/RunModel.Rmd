@@ -14,7 +14,11 @@ editor_options:
 
 This file is to be considered as Supplementary Information for the paper 'Exploring trade-offs in mixed fisheries by integrating fleet dynamics into multispecies size-spectrum models' submitted to the Journal of Applied Ecology.  
 
-This file loads the data and all the codes needed to run the calibrated size-spectrum and fleet dynamics model that represents the Australia’s South East Shark and Scalefish Fishery. It provides the data and codes to set up scenarios, run projections and calculate ecological and socio-economic indicators detailed in the paper. Finally, this file reproduces all modelling and data figures in the paper, specifically Fig 2 (baseline model's output), Fig 3 (final model's outputs), Fig 4 (Scenarios and model projections to 2040) and Fig 5 (change in indicators across scenarios and relative to the status quo). For more information, please contact camilla.novaglio@gmail.com  
+This file loads the data and all the codes needed to run the calibrated size-spectrum and fleet dynamics model that represents the Australia’s South East Shark and Scalefish Fishery. It provides the data and codes to set up scenarios, run projections and calculate ecological and socio-economic indicators detailed in the paper. Finally, this file reproduces all modelling and data figures in the paper, specifically Fig 2 (baseline model's output), Fig 3 (final model's outputs), Fig 4 (Scenarios and model projections to 2040) and Fig 5 (change in indicators across scenarios and relative to the status quo).  
+
+Two sets of values of the species-specific reproductive efficiency parameter are provided. See **Run fleet dynamics and size-spectrum model** section below for more information.   
+
+For model use and interpretation, please contact camilla.novaglio@gmail.com  
 
 ## Load data and codes  
 
@@ -58,7 +62,7 @@ source("DataFunction.R")
 df_param = df_param2 # species-specific parameters 
 interaction = theta # predator-prey interaction matrix
 kappa = kappa # intercept of the pelagic background spectrum 
-kappa_ben = kappa_ben # intercept of the benthic background spectrum # NOTE CAMI benthic is larger than plankton spectrum... 
+kappa_ben = kappa_ben # intercept of the benthic background spectrum 
 kappa_alg = kappa_alg # intercept of the algae background spectrum (not used)
 w_pp_cutoff = w_pp_cutoff # cut off size of the benthic background spectrum 
 min_w_bb = min_w_bb # minimum size of the pelagic background spectrum 
@@ -81,8 +85,11 @@ Blevel_management = "Bmsy" # management type
 initial_n = initial_n # initial species abundance 
 initial_n_pp = initial_n_pp # initial pelagic background abundance 
 initial_n_bb = initial_n_bb # initial benthic background abundance 
-initial_effort = initial_effort2 # initial effort as a starting values for fleet dynamics 
+initial_effort = initial_effort2 # initial effort as a starting values for fleet dynamics
 scaling_effort<-rep(1,5) # not influential - set to 1
+
+# location to save figures
+save_loc = "/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/"
 
 ```
 
@@ -120,15 +127,23 @@ theme_final<-theme(
 fig2B<-fig2
 fig2B<-fig2B+theme_final+ theme(strip.text.x = element_text(face = "plain"))
 
-pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_2.pdf", height=5, width=7.08)
+pdf(paste0(save_loc,"Figure_2.pdf"), height=5, width=7.08)
 fig2B
 dev.off()
 
 ```
 
-### Run calibrated fleet dynamics and size-spectrum model   
+### Run fleet dynamics and size-spectrum model   
+
+We provide two model parameterisation options. **Option 1** uses hand-tuned values of the species-specific reproductive efficiency parameter (see Appendix S4 in Supplementary Information, Novaglio et al, 2021). **Option 2** uses (unchanged) values of this parameter as per the baseline model (Appendix S3). Results shown and discussed in Novaglio et al (2021) refer to option 1, but see Appendix S5 for a comparison of outputs between the two paramterisation options.  
 
 ```{r run model, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+
+option = 1 # specify parameterisation option for reproductive efficiency. 1 for default option and to reproduce main results
+
+if(option == 2){
+  df_param$erepro<-sim_fitted@params@species_params$erepro
+}
 
 ####### set up model parameters 
 params_FD <- MizerParams(df_param, interaction = interaction, kappa = kappa, kappa_ben = kappa_ben, kappa_alg = kappa_alg, w_pp_cutoff = w_pp_cutoff, min_w_bb = min_w_bb, w_bb_cutoff = w_bb_cutoff, fleetDynamics = fleetDynamics, selectivity_params = selectivity_params, catchability = catchability, target = target)
@@ -136,7 +151,7 @@ params_FD <- MizerParams(df_param, interaction = interaction, kappa = kappa, kap
 ####### run model
 sim_FD_bmsy <- project(params_FD, effort = effort, dt = dt, fleetDynamics = fleetDynamics, multiFleet = multiFleet, management = management, price = price, cost = cost, diet_steps = diet_steps, ke = ke, initial_n = initial_n, initial_n_pp = initial_n_pp, initial_n_bb = initial_n_bb, initial_effort = initial_effort, scaling_price = scaling_price, Blevel_management = Blevel_management) 
 
-####### plots
+# ####### plots
 plot_CN(sim_FD_bmsy)
 
 ```
@@ -218,7 +233,11 @@ fig3b2 <- fig3b2 + ggtitle("b)") + theme(plot.title = element_text(size = 11, fa
 
 fig3<-((plotEffortCatch_fl/fig3b2 + plot_layout(nrow=2,height=c(1,2))) | (plot_spacer()/leg + plot_layout(nrow=2,height=c(1,1)))) + plot_layout(ncol=2, widths = c(4,1))
 
-pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_3.pdf", height=6, width=7.08)
+fig3
+
+if(option == 1){name = "Figure_3.pdf"}else{name = "Figure_S9.pdf"}
+
+pdf(paste0(save_loc, name), height=6, width=7.08)
 fig3
 dev.off()
 
@@ -240,7 +259,7 @@ initial_n_bb_scenario  = sim@n_bb[nrow(sim@n_bb),]
 initial_effort_scenario = sim@effortOut[dim(sim@effortOut)[1],]   
 
 ####### forward price and costs to 2040
-t_max = 24 # use 24 or 84 to run the model to 2100 (Fig S9)
+t_max = 24 # to 2040
 # start projections in 2017 as per initial effort, then remove the starting year nd consider 2018-2040 
 price_forward = t(replicate(t_max, price[nrow(price),]))
 rownames(price_forward)<-seq(2017,(2017+t_max-1))
@@ -464,12 +483,15 @@ plot_all<-plot_all + theme_final+ theme(legend.key.size = unit(0.35, 'cm'), stri
 # merge panel B top and bottom rows
 fig4B<-plot_effort/plot_all
 
-# Fig 4
-pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_S9_flipped.pdf", height=7.03, width=9)
+if(option == 1){name = "Figure_4.pdf"}else{name = "Figure_S10.pdf"}
+
+# # Fig 4 
+# flipped
+pdf(paste0(save_loc, name), height=7.03, width=9)
 plot_matrix / fig4B + plot_layout (nrow = 2, heights = c(2.2,2.8))
 dev.off()
-
-# pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_4.pdf", height=7.03, width=7.03)
+# 
+# pdf(paste0(save_loc, name), height=7.03, width=7.03)
 # plot_matrix / fig4B + plot_layout (nrow = 2, heights = c(2.2,2.8))
 # dev.off()
 
@@ -498,12 +520,42 @@ lolliIndicator2 <- lolliIndicator2 + ggtitle("b)") + theme(plot.title = element_
 lolliIndicator1<-lolliIndicator1 +theme_final + theme(strip.text.x = element_text(face = "plain"))
 lolliIndicator2<-lolliIndicator2 +theme_final + theme(strip.text.x = element_text(face = "plain"))
 
+lolliIndicator1/lolliIndicator2
+
+if(option == 1){name = "Figure_5.pdf"}else{name = "Figure_S11.pdf"}
+
 # final Fig 5
-pdf("/Users/camillan/Dropbox/Mizer-fleet_extension/plot/FD/Final/revision/Final_uploaded/Figure_5.pdf", height=7.08, width=7.08)
+pdf(paste0(save_loc, name), height=7.08, width=7.08)
 lolliIndicator1/lolliIndicator2 + plot_layout (nrow = 2, heights = c(2.1,0.9))
 dev.off()
 
 ```
 
+### Additional figs
+
+```{r}
+
+plot_list<-list()
+names(sim_scenario)
+col_values<-c("#b2182b", "#ef8a62", "#d1e5f0","#67a9cf", "#2166ac")
+
+for(i in 1:length(sim_scenario)){
+  plot_list[[i]]<-plotSppTrends(sim_scenario[[i]])
+  names(plot_list)[i] <- names(sim_scenario)[i]
+}
+
+plot_list$statusQuo
+
+if(option == 1){name = "FigS3_"}else{name = "FigS13_"}
+
+for(i in 1:length(plot_list)){
+  
+  pdf(paste0(save_loc,name, names(plot_list)[i],".pdf"), height=13, width=13) 
+  print(plot_list[[i]])
+  dev.off()
+  
+}
+
+```
 
 

@@ -1738,21 +1738,27 @@ indicatorsTrend<-function(a,b, sim_scenario, sim, col_values){
 
 plotIndicators<-function(a,b,df_plot, col_values, scenarios){
   
+  # a = a
+  # b = b
+  # df_plot = df_plot
+  # col_values = col_values3
+  # scenarios = "all"
+  
   ref<-df_plot[which(df_plot$scenario == "statusQuo"),] 
   ref <- ref %>% 
-    mutate(slope = 1+slope) %>% # increase in (negative) slope -> positive outcome
+    # mutate(slope = 1+slope) %>% # increase in (negative) slope -> positive outcome
     mutate(Nref48 = 19-Nref48) %>% # spp above bmey instead of below 
     mutate(Nref40 = 19-Nref40) %>% 
     mutate(Nref20 = 19-Nref20) 
     
   df_plot2<-df_plot %>% 
     filter(scenario != "unfished") %>% 
-    mutate(slope = 1+slope) %>% # same as above 
+    # mutate(slope = 1+slope) %>% # same as above 
     mutate(Nref48 = 19-Nref48) %>%
     mutate(Nref40 = 19-Nref40) %>%
     mutate(Nref20 = 19-Nref20)
   
-  scenarios = "all"
+  # scenarios = "all"
   
   if(scenarios == "all"){
     df_plot2<-df_plot2} else if (scenarios == "extreme"){
@@ -1763,31 +1769,35 @@ plotIndicators<-function(a,b,df_plot, col_values, scenarios){
   # scaling after talking with Julia B.: 
   # % of these values are calculated below 
   
-  df_plot3<-df_plot2 %>% 
-    mutate(biomass = biomass/ref$biomass) %>% 
-    mutate(biomassSens = biomassSens/ref$biomassSens) %>% 
-    mutate(biomassTarget = biomassTarget/ref$biomassTarget) %>% 
+  df_plot3<-df_plot2 %>%
+    mutate(biomass = biomass/ref$biomass) %>%
+    mutate(biomassSens = biomassSens/ref$biomassSens) %>%
+    mutate(biomassTarget = biomassTarget/ref$biomassTarget) %>%
     mutate(Nref48 = Nref48-ref$Nref48) %>% # these need to be shown as changes in number of ...
-    mutate(Nref40 = Nref40-ref$Nref40) %>% # as above 
+    mutate(Nref40 = Nref40-ref$Nref40) %>% # as above
     mutate(Nref20 = Nref20-ref$Nref20) %>% # as above
     mutate(Fref = Fref-ref$Fref) %>% # as above
-    mutate(slope = slope/ref$slope) %>% 
-    mutate(yield = yield/ref$yield) %>% 
-    mutate(effort = effort/ref$effort) %>% 
-    mutate(profit = profit/ref$profit) 
+    # mutate(slope = slope/ref$slope) %>%
+    mutate(slope = ((slope-ref$slope)/abs(ref$slope))*100) %>% # slope is negative
+    mutate(yield = yield/ref$yield) %>%
+    mutate(effort = effort/ref$effort) %>%
+    # mutate(profit = profit/ref$profit) # %>% 
+    mutate(profit = ((profit-ref$profit)/abs(ref$profit))*100) # profit can be negative
   
   df_plot4<-df_plot3 %>% 
     gather(indicator, value, -scenario) %>% 
     mutate(scenario = factor(scenario, level = rev(a))) %>% 
-    mutate(indicator = factor(indicator, level = rev(e))) %>%
-    mutate(color = ifelse(value < 1, "a", "b")) 
+    mutate(indicator = factor(indicator, level = rev(e))) #%>%
+    # mutate(color = ifelse(value < 1, "a", "b")) 
   levels(df_plot4$scenario) <- rev(b)
   levels(df_plot4$indicator) <- rev(f)
   
   # % 
   df_plot5<-df_plot4 %>% 
     filter(!indicator %in% c("Spp above Bmey","Spp above Bmsy", "Spp above Blim", "Active fleets")) %>% 
-    mutate(value = (value -1) *100) %>% # NOTE : to get % values  
+    mutate(value = ifelse(indicator %in% c("Slope","Profit"), value, (value -1) *100)) %>% # NOTE : to get % values
+    # mutate(value = (value -1) *100) %>% 
+    mutate(color = ifelse(value < 0, "a", "b")) %>% 
     droplevels()
    
   lolliIndicator1<-ggplot(df_plot5, aes(x= scenario, y = value, color = color))+
@@ -1829,7 +1839,7 @@ plotIndicators<-function(a,b,df_plot, col_values, scenarios){
   df_plot6<-df_plot4 %>% 
     filter(indicator %in% c("Spp above Bmey","Spp above Bmsy", "Spp above Blim", "Active fleets")) %>% 
     droplevels() %>% 
-    mutate(color = ifelse(value < 0, "a", "b"))
+    mutate(color = ifelse(value < 0, "a", "b")) # NOTE - if all positive or all negative, only first color is picked up (orange)
   
   # use expressions to define titles
   df_plot6$indicator <- factor(df_plot6$indicator, 
@@ -1845,7 +1855,7 @@ plotIndicators<-function(a,b,df_plot, col_values, scenarios){
     theme_tufte(base_family = "")+ 
     geom_hline(yintercept = 0, linetype = "dashed", size = 0.5)+
     xlab ("Scenario")+
-    scale_y_continuous(labels = c(-1,0,1,2,3,4), breaks=c(-1,0,1,2,3,4), name = "Change relative to Status Quo (number)")+ 
+    scale_y_continuous(labels = c(-4,-3,-2,-1,0,1,2,3,4), breaks=c(-4,-3,-2,-1,0,1,2,3,4), name = "Change relative to Status Quo (number)")+ 
     theme(text = element_text(size=12),
           legend.position = "none",
           axis.title.y = element_text(vjust=0.4, size = 13),
@@ -1870,6 +1880,8 @@ plotIndicators<-function(a,b,df_plot, col_values, scenarios){
 ########### plot catch trends ----
 
 plotSppTrends<-function(temp_sim){
+  
+  # temp_sim = sim_FD_bmsy
   
   # sp biomass  
   biomass <- temp_sim %>%
@@ -1911,7 +1923,7 @@ plotSppTrends<-function(temp_sim){
   limits = c(1000,250000)
 
   plot_bio <- ggplot(biomass, aes(x = year, y = log10(biomass))) +
-    scale_y_continuous( name = y_label) # limits = limits, trans = "log10",
+    scale_y_continuous( name = y_label) +# limits = limits, trans = "log10",
     scale_x_continuous(name = x_label) +
     annotate("rect", xmin = min(biomass$year), xmax = 2017, ymin = -Inf , ymax = Inf, alpha = .1, fill = "purple")+
     geom_line(size = 0.8, color = "grey50") + 
@@ -2005,7 +2017,7 @@ plotSppTrends<-function(temp_sim){
           panel.border = element_rect(colour = "black"),
           strip.text.x = element_text(face = "bold"))
   
-  limitsy = c(0,17)
+  limitsy = c(0,20)
   plot_yield <- ggplot(yield, aes(x = year, y = yield, color = fleet, group = fleet)) + 
     geom_line(size = 1) +
     scale_y_continuous(name = "Yield (tonnes X 1000)", limits = limitsy) +
