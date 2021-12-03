@@ -13,8 +13,8 @@ The master script RunModel.Rmd is structured into three main steps:
 
 ** Data is saved in the /data folder, which is part of this repository 
 
-*** Figures are not saved withing the repository for space limits
+*** Figures are not saved within the repository for space limits
 
-*** project.r includes project functions for the size based modelling package mizer here modified to integrate fleet dynamics
+*** project.r includes project functions from the size based modelling package mizer here modified to integrate fleet dynamics
 
  
